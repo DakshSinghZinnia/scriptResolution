@@ -1,0 +1,1 @@
+Concat('Hi ', If(A/@B=='X','Yes','No'))
