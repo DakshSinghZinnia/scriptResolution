@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<A>
-  <B>Y</B>
-</A>
+<Root>
+    <LetterData>
+        <ClientId>MWOA</ClientId>
+        <Message>Hello World!</Message>
+    </LetterData>
+</Root>
