@@ -1,3 +1,3 @@
-﻿Col1,Col2
-key1,value1
-key2,value2
+﻿PlanCode,ProductType,Description
+VUL01,VUL,Variable Universal Life
+LIFE01,Life,Whole Life Policy

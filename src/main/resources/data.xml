@@ -1,7 +1,37 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Root>
+<Data>
+    <A>
+        <B>X</B>
+    </A>
+    <M_Recipient_Zip>123456789</M_Recipient_Zip>
+    <Text>Hello, World!</Text>
+    <Whitespace>  padded  </Whitespace>
+    <Name>john doe</Name>
+    <ContractNumber>123456789012345</ContractNumber>
+    <Phone>123 456 7890</Phone>
+
+    <Numbers>
+        <N1>10</N1>
+        <N2>3</N2>
+        <N3>-7</N3>
+        <N4>2.75</N4>
+        <N5>1234.5</N5>
+    </Numbers>
+
+    <Dates>
+        <D1>2019-01-18</D1>
+        <D2>2022-02-19</D2>
+        <DateUSA>07/04/2024</DateUSA>
+        <DateLong>September 10, 2023</DateLong>
+        <DateDash>12-25-2022</DateDash>
+        <Time24>14:05:06</Time24>
+        <Time12>02:05:06 PM</Time12>
+        <Iso>2024-11-21T16:30:45</Iso>
+        <CurrentDate>2024-05-15</CurrentDate>
+    </Dates>
+
     <LetterData>
+        <PlanCode>VUL01</PlanCode>
         <ClientId>MWOA</ClientId>
-        <Message>Hello World!</Message>
     </LetterData>
-</Root>
+</Data>

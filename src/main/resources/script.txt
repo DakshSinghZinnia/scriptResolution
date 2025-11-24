@@ -1,1 +1,1 @@
-NumberToWords(12345)
+Round(123.6,2)

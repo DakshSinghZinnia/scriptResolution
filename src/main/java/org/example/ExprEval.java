@@ -662,7 +662,36 @@ public class ExprEval {
             r.register("UpperCase", (ctx,a)->{ ensureArity("UpperCase",a,1); return new StrVal(Coerce.toString(a.get(0)).toUpperCase(Locale.ROOT)); });
             r.register("LowerCase", (ctx,a)->{ ensureArity("LowerCase",a,1); return new StrVal(Coerce.toString(a.get(0)).toLowerCase(Locale.ROOT)); });
             r.register("TitleCase", (ctx,a)->{ ensureArity("TitleCase",a,1); return new StrVal(toTitleCase(Coerce.toString(a.get(0)))); });
-            r.register("Replace", (ctx,a)->{ ensureArity("Replace",a,3); return new StrVal(Coerce.toString(a.get(0)).replace(Coerce.toString(a.get(1)), Coerce.toString(a.get(2)))); });
+            r.register("Replace", (ctx,a)->{
+                if (a.size()==3) {
+                    // Existing syntax: Replace(Input, SearchStr, ReplaceStr)
+                    String input  = Coerce.toString(a.get(0));
+                    String search = Coerce.toString(a.get(1));
+                    String repl   = Coerce.toString(a.get(2));
+                    return new StrVal(input.replace(search, repl));
+                } else if (a.size()==4) {
+                    // New syntax: Replace(Input, Index(1-based), Length, ReplaceStr)
+                    String input = Coerce.toString(a.get(0));
+                    int index1   = toIntSafe(Coerce.toBigDecimal(a.get(1))); // 1-based index
+                    int len      = toIntSafe(Coerce.toBigDecimal(a.get(2)));
+                    String repl  = Coerce.toString(a.get(3));
+
+                    if (index1 < 1) throw new EvalException("RANGE_ERROR: Replace index out of range");
+                    if (len < 0)   throw new EvalException("RANGE_ERROR: Replace length negative");
+
+                    int start0 = index1 - 1;                   // convert to 0-based
+                    if (start0 > input.length())
+                        throw new EvalException("RANGE_ERROR: Replace start out of range");
+
+                    int end0 = start0 + len;
+                    if (end0 > input.length())
+                        throw new EvalException("RANGE_ERROR: Replace end out of range");
+
+                    return new StrVal(input.substring(0, start0) + repl + input.substring(end0));
+                } else {
+                    throw new EvalException("ARITY_MISMATCH: 'Replace' expects 3 or 4 args");
+                }
+            });
 
             // Trim(Input[, TrimChar])  (default TrimChar = space)
             r.register("Trim", (ctx,a)->{
@@ -682,8 +711,8 @@ public class ExprEval {
             r.register("Insert", (ctx,a)->{
                 ensureArity("Insert",a,3);
                 String input = Coerce.toString(a.get(0));
-                String ins = Coerce.toString(a.get(1));
-                int idx1 = toIntExact(Coerce.toBigDecimal(a.get(2))); // 1-based index per spec (Index, InsertStr order from sheet is (Input,Index,InsertStr))
+                String ins = Coerce.toString(a.get(2));
+                int idx1 = toIntExact(Coerce.toBigDecimal(a.get(1))); // 1-based index per spec (Index, InsertStr order from sheet is (Input,Index,InsertStr))
                 int at = idx1 - 1;
                 if (at < 0 || at > input.length()) throw new EvalException("RANGE_ERROR: Insert index out of range");
                 return new StrVal(input.substring(0, at) + ins + input.substring(at));
