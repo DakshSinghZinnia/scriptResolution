@@ -676,16 +676,18 @@ public class ExprEval {
                     int len      = toIntSafe(Coerce.toBigDecimal(a.get(2)));
                     String repl  = Coerce.toString(a.get(3));
 
-                    if (index1 < 1) throw new EvalException("RANGE_ERROR: Replace index out of range");
-                    if (len < 0)   throw new EvalException("RANGE_ERROR: Replace length negative");
+//                    if (index1 < 1) throw new EvalException("RANGE_ERROR: Replace index out of range");
+                    if (index1 < 1) index1 = 1;
+//                    if (len < 0)   throw new EvalException("RANGE_ERROR: Replace length negative");
+                    if (len < 0)   len = 0;
 
                     int start0 = index1 - 1;                   // convert to 0-based
-                    if (start0 > input.length())
-                        throw new EvalException("RANGE_ERROR: Replace start out of range");
+//                    if (start0 > input.length()) throw new EvalException("RANGE_ERROR: Replace start out of range");
+                    if (start0 > input.length()) start0 = input.length();
 
                     int end0 = start0 + len;
-                    if (end0 > input.length())
-                        throw new EvalException("RANGE_ERROR: Replace end out of range");
+//                    if (end0 > input.length()) throw new EvalException("RANGE_ERROR: Replace end out of range");
+                    if (end0 > input.length()) end0 = input.length();
 
                     return new StrVal(input.substring(0, start0) + repl + input.substring(end0));
                 } else {
@@ -714,7 +716,9 @@ public class ExprEval {
                 String ins = Coerce.toString(a.get(2));
                 int idx1 = toIntExact(Coerce.toBigDecimal(a.get(1))); // 1-based index per spec (Index, InsertStr order from sheet is (Input,Index,InsertStr))
                 int at = idx1 - 1;
-                if (at < 0 || at > input.length()) throw new EvalException("RANGE_ERROR: Insert index out of range");
+//                if (at < 0 || at > input.length()) throw new EvalException("RANGE_ERROR: Insert index out of range");
+                if (at < 0) return new StrVal(ins+input);
+                if (at > input.length()) return new StrVal(input+ins);
                 return new StrVal(input.substring(0, at) + ins + input.substring(at));
             });
 
@@ -752,23 +756,26 @@ public class ExprEval {
                 if (a.size()!=2 && a.size()!=3) throw new EvalException("ARITY_MISMATCH: 'SubString' expects 2 or 3 args");
                 String s = Coerce.toString(a.get(0));
                 int start1 = toIntSafe(Coerce.toBigDecimal(a.get(1)));
-                if (start1 < 1 || start1 > s.length()+0) throw new EvalException("RANGE_ERROR: SubString start out of range");
+//                if (start1 < 1 || start1 > s.length()+0) throw new EvalException("RANGE_ERROR: SubString start out of range");
+                if (start1 < 1 || start1 > s.length()+0) return new StrVal("");
                 int start0 = start1 - 1;
                 if (a.size()==2) return new StrVal(s.substring(start0));
                 int len = toIntSafe(Coerce.toBigDecimal(a.get(2)));
-                if (len < 0) throw new EvalException("RANGE_ERROR: SubString length negative");
+//                if (len < 0) throw new EvalException("RANGE_ERROR: SubString length negative");
+                if (len < 0) return new StrVal("");
                 int end0 = start0 + len;
-                if (end0 > s.length()) throw new EvalException("RANGE_ERROR: SubString end out of range");
+//                if (end0 > s.length()) throw new EvalException("RANGE_ERROR: SubString end out of range");
+                if (end0 > s.length()) return new StrVal(s.substring(start0));
                 return new StrVal(s.substring(start0, end0));
             });
 
             r.register("SubStringBefore", (ctx,a)->{ ensureArity("SubStringBefore",a,2);
                 String s = Coerce.toString(a.get(0)), t = Coerce.toString(a.get(1));
-                int i = s.indexOf(t); return new StrVal(i < 0 ? "" : s.substring(0, i)); });
+                int i = s.indexOf(t); return new StrVal(i < 0 ? s : s.substring(0, i)); });
 
             r.register("SubStringAfter", (ctx,a)->{ ensureArity("SubStringAfter",a,2);
                 String s = Coerce.toString(a.get(0)), t = Coerce.toString(a.get(1));
-                int i = s.indexOf(t); return new StrVal(i < 0 ? "" : s.substring(i + t.length())); });
+                int i = s.indexOf(t); return new StrVal(i < 0 ? s : s.substring(i + t.length())); });
 
             // ----------------- Numeric / Math (varargs) -----------------
             r.register("Add", (ctx,a)->{
