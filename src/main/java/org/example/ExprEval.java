@@ -102,31 +102,45 @@ public class ExprEval {
 
         // === Node 1: Basic transformations ===
         Map<String, String> node1 = new LinkedHashMap<>();
-        // Copy and uppercase the owner name
-        node1.put("LetterData/OwnerNameUpper", "UpperCase(LetterData/People_PrimaryOwner_LastName)");
-        // Format a postal number
-        node1.put("LetterData/FormattedZip", "SubString(LetterData/M_Recipient_Zip, 1, 5)");
-        // Concatenate address parts
-        node1.put("LetterData/FullAddress", "Concat(LetterData/M_Recipient_AddressLine1, ', ', LetterData/M_Recipient_City, ', ', LetterData/M_Recipient_State, ' ', LetterData/M_Recipient_Zip)");
-        nodes.add(node1);
 
-        // === Node 2: Computed values using results from Node 1 ===
+        node1.put("PlanCode_Lookup/ProductType", "Lookup(PlanCode_Lookup/PlanCode, PlanCode_Lookup, 26, \"\")");
+        node1.put("LetterData/People_Annuitant_FullName", "Concat(LetterData/People_Annuitant_FirstName,' ',LetterData/People_Annuitant_LastName)");
+        node1.put("LetterData/Owner_FullName", "Concat(LetterData/Owner_FirstName,' ',LetterData/Owner_LastName)");
+        node1.put("LetterData/M_Name", "if((LetterData/DocInfo/DocName == 'Annuitization Letter_MM' || LetterData/DocInfo/DocName == 'Attempt to Locate' || LetterData/DocInfo/DocName == 'Death Initial Notification_MM' || LetterData/DocInfo/DocName == 'NIGO Death Initial Notification Letter' || LetterData/DocInfo/DocName == 'Explanation of Benefit Letter Amount') ,TitleCase(LetterData/M_Name),LetterData/M_Name)");
+        node1.put("PlanCode_Lookup/ServiceCenterHours", " Lookup(PlanCode_Lookup/PlanCode, PlanCode_Lookup, 24, \"\")");
+        node1.put("PlanCode_Lookup/Company_Text", "Lookup(PlanCode_Lookup/PlanCode, PlanCode_Lookup, 10, \"\")");
+        node1.put("PlanCode_Lookup/FaxNumber", "Lookup(PlanCode_Lookup/PlanCode, PlanCode_Lookup, 25, \"\")");
+
         Map<String, String> node2 = new LinkedHashMap<>();
-        // Create a greeting using the uppercase name from node 1
-        node2.put("LetterData/Greeting", "Concat('Dear ', LetterData/OwnerNameUpper, ',')");
-        // Format currency
-        node2.put("LetterData/FormattedAccountValue", "MaskNumber(LetterData/AccountValue, '', '$#,###.00')");
-        // Add a computed field
-        node2.put("LetterData/ProcessedFlag", "'true'");
-        nodes.add(node2);
+        node2.put("PlanCode_Lookup/Client_Abbr","Lookup(PlanCode_Lookup/PlanCode, PlanCode_Lookup, 35, \"\")");
 
-        // === Node 3: Date formatting and final touches ===
-        Map<String, String> node3 = new LinkedHashMap<>();
-        // Format the issue date
-        node3.put("LetterData/FormattedIssueDate", "MaskDateTime(LetterData/IssueDate, '', 'MMMM dd, yyyy')");
-        // Create a summary field using computed values
-        node3.put("LetterData/Summary", "Concat('Contract #', LetterData/ContractNumber, ' - Value: ', LetterData/FormattedAccountValue)");
-        nodes.add(node3);
+        // Copy and uppercase the owner name
+        // node1.put("LetterData/OwnerNameUpper", "UpperCase(LetterData/People_PrimaryOwner_LastName)");
+        // // Format a postal number
+        // node1.put("LetterData/FormattedZip", "SubString(LetterData/M_Recipient_Zip, 1, 5)");
+        // // Concatenate address parts
+        // node1.put("LetterData/FullAddress", "Concat(LetterData/M_Recipient_AddressLine1, ', ', LetterData/M_Recipient_City, ', ', LetterData/M_Recipient_State, ' ', LetterData/M_Recipient_Zip)");
+        // nodes.add(node1);
+
+        // // === Node 2: Computed values using results from Node 1 ===
+        // Map<String, String> node2 = new LinkedHashMap<>();
+        // // Create a greeting using the uppercase name from node 1
+        // node2.put("LetterData/Greeting", "Concat('Dear ', LetterData/OwnerNameUpper, ',')");
+        // // Format currency
+        // node2.put("LetterData/FormattedAccountValue", "MaskNumber(LetterData/AccountValue, '', '$#,###.00')");
+        // // Add a computed field
+        // node2.put("LetterData/ProcessedFlag", "'true'");
+        // nodes.add(node2);
+
+        // // === Node 3: Date formatting and final touches ===
+        // Map<String, String> node3 = new LinkedHashMap<>();
+        // // Format the issue date
+        // node3.put("LetterData/FormattedIssueDate", "MaskDateTime(LetterData/IssueDate, '', 'MMMM dd, yyyy')");
+        // // Create a summary field using computed values
+        // node3.put("LetterData/Summary", "Concat('Contract #', LetterData/ContractNumber, ' - Value: ', LetterData/FormattedAccountValue)");
+        // nodes.add(node3);
+
+
 
         return nodes;
     }
