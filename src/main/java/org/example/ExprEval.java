@@ -3,6 +3,7 @@ package org.example;
 import java.io.*;
 import java.math.*;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.*;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.time.*;
@@ -10,50 +11,79 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
-import javax.xml.parsers.*;
-import org.w3c.dom.*;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
 public class ExprEval {
+
+    // =========================================================
+    // Configuration
+    // =========================================================
+    private static final String INPUT_DIR = "input";
+    private static final String INTERMEDIATE_DIR = "intermediate";
+    private static final String OUTPUT_DIR = "output";
+    private static final String INPUT_FILE = "input.json";
+    private static final String OUTPUT_FILE = "output.json";
 
     // =========================================================
     // Entry
     // =========================================================
     public static void main(String[] args) {
         try {
-            Cli cli = Cli.parse(args);
-
-            String expr = cli.expression;
-            if (expr == null) {
-                expr = ResourceUtil.loadScriptFromResources();
-                if (expr == null) {
-                    throw new EvalException(
-                            "USAGE: java ExprEval [-xml path] <expression>\n" +
-                                    "Or place resources/script.txt and resources/data.xml and run with no args."
-                    );
-                }
-            }
-            expr = Html.decodeEntities(stripOuterQuotes(expr));
-
-            Document xmlDoc = null;
-            if (cli.xmlPath != null) {
-                xmlDoc = XmlUtil.parseXml(new File(cli.xmlPath));
-            } else {
-                xmlDoc = ResourceUtil.loadXmlFromResources(); // may be null for script without variables
-            }
-
-            Lexer lexer = new Lexer(expr);
-            Parser parser = new Parser(lexer);
-            ExprNode ast = parser.parse();
-
+            // Initialize function registry
             FunctionRegistry registry = new FunctionRegistry();
             StandardFunctions.registerAll(registry);
 
-            Context ctx = new Context(xmlDoc, registry);
+            // Define conversion nodes - each Map contains: path -> script
+            List<Map<String, String>> conversionNodes = createConversionNodes();
 
-            Value result = ast.eval(ctx);
-            System.out.println(ValuePrinter.print(result));
+            // Load input JSON
+            ObjectNode currentJson = JsonUtil.loadInputJson();
+            System.out.println("Loaded input.json");
+
+            // Clear intermediate directory
+            JsonUtil.clearIntermediateDir();
+
+            // Process each conversion node
+            for (int nodeIndex = 0; nodeIndex < conversionNodes.size(); nodeIndex++) {
+                Map<String, String> node = conversionNodes.get(nodeIndex);
+                System.out.println("\n=== Processing Node " + (nodeIndex + 1) + " ===");
+
+                for (Map.Entry<String, String> entry : node.entrySet()) {
+                    String targetPath = entry.getKey();
+                    String script = entry.getValue();
+
+                    System.out.println("  Path: " + targetPath);
+                    System.out.println("  Script: " + script);
+
+                    // Evaluate the script with current JSON state
+                    String scriptDecoded = Html.decodeEntities(script);
+                    Lexer lexer = new Lexer(scriptDecoded);
+                    Parser parser = new Parser(lexer);
+                    ExprNode ast = parser.parse();
+                    Context ctx = new Context(currentJson, registry);
+                    Value result = ast.eval(ctx);
+                    String resultStr = ValuePrinter.print(result);
+
+                    System.out.println("  Result: " + resultStr);
+
+                    // Set the result at the target path (creates path if not exists)
+                    JsonUtil.setValueAtPath(currentJson, targetPath, resultStr);
+                }
+
+                // Save intermediate result
+                String intermediateFile = "node_" + (nodeIndex + 1) + ".json";
+                JsonUtil.saveIntermediateJson(currentJson, intermediateFile);
+                System.out.println("Saved intermediate: " + intermediateFile);
+            }
+
+            // Save final output
+            JsonUtil.saveOutputJson(currentJson);
+            System.out.println("\n=== Saved final output.json ===");
+
         } catch (EvalException e) {
-            System.err.println(e.getMessage());
+            System.err.println("ERROR: " + e.getMessage());
             System.exit(2);
         } catch (Exception e) {
             e.printStackTrace();
@@ -61,72 +91,44 @@ public class ExprEval {
         }
     }
 
-    private static String stripOuterQuotes(String s) {
-        String t = s.trim();
-        if (t.length() >= 2) {
-            char a = t.charAt(0), b = t.charAt(t.length() - 1);
-            if ((a == '"' && b == '"') || (a == '\'' && b == '\'')) {
-                return t.substring(1, t.length() - 1);
-            }
-        }
-        return s;
-    }
+    /**
+     * Define conversion nodes here.
+     * Each Map<String, String> represents a conversion node.
+     * Key = target JSON path (e.g., "LetterData/M_Amount")
+     * Value = script to evaluate (result will be stored at the path)
+     */
+    private static List<Map<String, String>> createConversionNodes() {
+        List<Map<String, String>> nodes = new ArrayList<>();
 
-    // =========================================================
-    // CLI
-    // =========================================================
-    private static final class Cli {
-        final String xmlPath;
-        final String expression;
-        private Cli(String xmlPath, String expression) { this.xmlPath = xmlPath; this.expression = expression; }
-        static Cli parse(String[] args) {
-            String xmlPath = null;
-            List<String> rest = new ArrayList<>();
-            for (int i = 0; i < args.length; i++) {
-                if ("-xml".equals(args[i]) && i + 1 < args.length) {
-                    xmlPath = args[++i];
-                } else {
-                    rest.add(args[i]);
-                }
-            }
-            String expr = rest.isEmpty() ? null : String.join(" ", rest);
-            return new Cli(xmlPath, expr);
-        }
-    }
+        // === Node 1: Basic transformations ===
+        Map<String, String> node1 = new LinkedHashMap<>();
+        // Copy and uppercase the owner name
+        node1.put("LetterData/OwnerNameUpper", "UpperCase(LetterData/People_PrimaryOwner_LastName)");
+        // Format a postal number
+        node1.put("LetterData/FormattedZip", "SubString(LetterData/M_Recipient_Zip, 1, 5)");
+        // Concatenate address parts
+        node1.put("LetterData/FullAddress", "Concat(LetterData/M_Recipient_AddressLine1, ', ', LetterData/M_Recipient_City, ', ', LetterData/M_Recipient_State, ' ', LetterData/M_Recipient_Zip)");
+        nodes.add(node1);
 
-    // =========================================================
-    // Resources
-    // =========================================================
-    static final class ResourceUtil {
-        private static final String[] SCRIPT_PATHS = { "/resources/script.txt", "/script.txt" };
-        private static final String[] XML_PATHS = { "/resources/data.xml", "/data.xml" };
-        static String loadScriptFromResources() {
-            for (String p : SCRIPT_PATHS) {
-                try (InputStream in = ExprEval.class.getResourceAsStream(p)) { if (in != null) return readAll(in); } catch (IOException ignored){}
-            }
-            for (String p : new String[]{"resources/script.txt", "script.txt"}) {
-                File f = new File(p);
-                if (f.isFile()) try (InputStream in = new FileInputStream(f)) { return readAll(in); } catch (IOException ignored){}
-            }
-            return null;
-        }
-        static Document loadXmlFromResources() {
-            for (String p : XML_PATHS) {
-                try (InputStream in = ExprEval.class.getResourceAsStream(p)) { if (in != null) return XmlUtil.parseXml(in); } catch (Exception ignored){}
-            }
-            for (String p : new String[]{"resources/data.xml", "data.xml"}) {
-                File f = new File(p);
-                if (f.isFile()) return XmlUtil.parseXml(f);
-            }
-            return null;
-        }
-        private static String readAll(InputStream in) throws IOException {
-            ByteArrayOutputStream bos = new ByteArrayOutputStream();
-            byte[] buf = new byte[8192];
-            int r;
-            while ((r = in.read(buf)) != -1) bos.write(buf, 0, r);
-            return bos.toString(StandardCharsets.UTF_8);
-        }
+        // === Node 2: Computed values using results from Node 1 ===
+        Map<String, String> node2 = new LinkedHashMap<>();
+        // Create a greeting using the uppercase name from node 1
+        node2.put("LetterData/Greeting", "Concat('Dear ', LetterData/OwnerNameUpper, ',')");
+        // Format currency
+        node2.put("LetterData/FormattedAccountValue", "MaskNumber(LetterData/AccountValue, '', '$#,###.00')");
+        // Add a computed field
+        node2.put("LetterData/ProcessedFlag", "'true'");
+        nodes.add(node2);
+
+        // === Node 3: Date formatting and final touches ===
+        Map<String, String> node3 = new LinkedHashMap<>();
+        // Format the issue date
+        node3.put("LetterData/FormattedIssueDate", "MaskDateTime(LetterData/IssueDate, '', 'MMMM dd, yyyy')");
+        // Create a summary field using computed values
+        node3.put("LetterData/Summary", "Concat('Contract #', LetterData/ContractNumber, ' - Value: ', LetterData/FormattedAccountValue)");
+        nodes.add(node3);
+
+        return nodes;
     }
 
     // =========================================================
@@ -143,99 +145,189 @@ public class ExprEval {
     }
 
     // =========================================================
-    // XML Vars
+    // JSON Utilities
     // =========================================================
-    static final class XmlUtil {
-        static final boolean LENIENT_ATTR_FALLBACK = true; // A/@B can fall back to element <B>text</B>
-        static Document parseXml(File file) {
-            try {
-                DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
-                dbf.setNamespaceAware(false);
-                dbf.setCoalescing(true);
-                dbf.setIgnoringComments(true);
-                dbf.setIgnoringElementContentWhitespace(false);
-                DocumentBuilder db = dbf.newDocumentBuilder();
-                return db.parse(file);
-            } catch (Exception e) { throw new EvalException("PARSE_ERROR: cannot load XML - " + e.getMessage()); }
+    static final class JsonUtil {
+        private static final ObjectMapper MAPPER = new ObjectMapper();
+
+        // ----- File I/O -----
+
+        /**
+         * Load input.json from resources/input/ folder
+         */
+        static ObjectNode loadInputJson() {
+            // Try classpath first
+            String[] classpathPaths = { "/" + INPUT_DIR + "/" + INPUT_FILE, "/input/" + INPUT_FILE };
+            for (String p : classpathPaths) {
+                try (InputStream in = ExprEval.class.getResourceAsStream(p)) {
+                    if (in != null) {
+                        JsonNode node = MAPPER.readTree(in);
+                        if (node instanceof ObjectNode) return (ObjectNode) node;
+                        throw new EvalException("PARSE_ERROR: input.json must be a JSON object");
+                    }
+                } catch (IOException ignored) {}
+            }
+
+            // Try filesystem
+            String[] fsPaths = { INPUT_DIR + "/" + INPUT_FILE, "src/main/resources/" + INPUT_DIR + "/" + INPUT_FILE };
+            for (String p : fsPaths) {
+                File f = new File(p);
+                if (f.isFile()) {
+                    try {
+                        JsonNode node = MAPPER.readTree(f);
+                        if (node instanceof ObjectNode) return (ObjectNode) node;
+                        throw new EvalException("PARSE_ERROR: input.json must be a JSON object");
+                    } catch (IOException e) {
+                        throw new EvalException("PARSE_ERROR: cannot read " + p + " - " + e.getMessage());
+                    }
+                }
+            }
+
+            throw new EvalException("PARSE_ERROR: cannot find input.json in resources/" + INPUT_DIR + "/");
         }
-        static Document parseXml(InputStream in) {
-            try {
-                DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
-                dbf.setNamespaceAware(false);
-                dbf.setCoalescing(true);
-                dbf.setIgnoringComments(true);
-                dbf.setIgnoringElementContentWhitespace(false);
-                DocumentBuilder db = dbf.newDocumentBuilder();
-                return db.parse(in);
-            } catch (Exception e) { throw new EvalException("PARSE_ERROR: cannot load XML - " + e.getMessage()); }
+
+        /**
+         * Save JSON to intermediate folder
+         */
+        static void saveIntermediateJson(ObjectNode json, String filename) {
+            saveToDir(json, INTERMEDIATE_DIR, filename);
         }
-        static String resolvePath(Document doc, String path) {
-            if (doc == null || path == null || path.isEmpty()) return "";
-            Element root = doc.getDocumentElement();
+
+        /**
+         * Save final output.json
+         */
+        static void saveOutputJson(ObjectNode json) {
+            saveToDir(json, OUTPUT_DIR, OUTPUT_FILE);
+        }
+
+        /**
+         * Clear intermediate directory
+         */
+        static void clearIntermediateDir() {
+            Path dir = resolveOutputDir(INTERMEDIATE_DIR);
+            if (Files.exists(dir)) {
+                try {
+                    Files.walk(dir)
+                         .filter(Files::isRegularFile)
+                         .filter(p -> p.toString().endsWith(".json"))
+                         .forEach(p -> { try { Files.delete(p); } catch (IOException ignored) {} });
+                } catch (IOException ignored) {}
+            }
+        }
+
+        private static void saveToDir(ObjectNode json, String dirName, String filename) {
+            Path dir = resolveOutputDir(dirName);
+            try {
+                Files.createDirectories(dir);
+                Path file = dir.resolve(filename);
+                MAPPER.writerWithDefaultPrettyPrinter().writeValue(file.toFile(), json);
+            } catch (IOException e) {
+                throw new EvalException("IO_ERROR: cannot write to " + dirName + "/" + filename + " - " + e.getMessage());
+            }
+        }
+
+        private static Path resolveOutputDir(String dirName) {
+            // Prefer src/main/resources for development, fall back to current dir
+            Path srcResources = Paths.get("src/main/resources", dirName);
+            if (Files.exists(srcResources.getParent())) {
+                return srcResources;
+            }
+            return Paths.get(dirName);
+        }
+
+        // ----- Path Resolution -----
+
+        /**
+         * Resolves a slash-separated path against a JSON tree.
+         * Example: "LetterData/M_Amount" navigates to root.LetterData.M_Amount
+         * Returns empty string if path not found or value is null/empty.
+         */
+        static String resolvePath(JsonNode root, String path) {
+            if (root == null || path == null || path.isEmpty()) return "";
             String[] parts = path.split("/");
             if (parts.length == 0) return "";
-            Node current = root;
-            int i = 0;
-            if (!root.getTagName().equals(parts[0])) {
-                Node first = findFirstChildByName(current, parts[0]);
-                if (first == null) return "";
-                current = first; i = 1;
-            } else { i = 1; }
-            while (i < parts.length) {
-                String seg = parts[i];
-                if (seg.startsWith("@")) {
-                    String attr = seg.substring(1);
-                    if (!(current instanceof Element)) return "";
-                    Element el = (Element) current;
-                    if (el.hasAttribute(attr)) {
-                        String v = el.getAttribute(attr);
-                        return v == null ? "" : v;
-                    } else if (LENIENT_ATTR_FALLBACK) {
-                        Node child = findFirstChildByName(current, attr);
-                        if (child instanceof Element) return getStringValue((Element) child);
-                        return "";
-                    } else {
-                        return "";
+
+            JsonNode current = root;
+            for (String part : parts) {
+                if (part.isEmpty()) continue;
+                if (current == null || current.isNull() || current.isMissingNode()) return "";
+
+                if (current.isObject()) {
+                    current = current.get(part);
+                } else if (current.isArray()) {
+                    // Array indexing support (for future use): path segment could be numeric index
+                    try {
+                        int index = Integer.parseInt(part);
+                        current = current.get(index);
+                    } catch (NumberFormatException e) {
+                        return ""; // cannot navigate array with non-numeric key
                     }
-                } else if ("@".equals(seg)) {
-                    if (i + 1 >= parts.length) return "";
-                    String attr = parts[i + 1];
-                    if (!(current instanceof Element)) return "";
-                    Element el = (Element) current;
-                    if (el.hasAttribute(attr)) {
-                        String v = el.getAttribute(attr);
-                        return v == null ? "" : v;
-                    } else if (LENIENT_ATTR_FALLBACK) {
-                        Node child = findFirstChildByName(current, attr);
-                        if (child instanceof Element) return getStringValue((Element) child);
-                        return "";
-                    } else { return ""; }
+                } else {
+                    return ""; // cannot navigate further into a value node
                 }
-                Node next = findFirstChildByName(current, seg);
-                if (next == null) return "";
-                current = next; i++;
             }
-            if (current instanceof Element) return getStringValue((Element) current);
+
+            if (current == null || current.isNull() || current.isMissingNode()) return "";
+            return getStringValue(current);
+        }
+
+        /**
+         * Sets a value at the specified path, creating intermediate objects if they don't exist.
+         * Example: setValueAtPath(root, "LetterData/NewField", "value")
+         *          creates LetterData object if needed, then sets NewField = "value"
+         */
+        static void setValueAtPath(ObjectNode root, String path, String value) {
+            if (root == null || path == null || path.isEmpty()) {
+                throw new EvalException("INVALID_PATH: path cannot be null or empty");
+            }
+
+            String[] parts = path.split("/");
+            if (parts.length == 0) {
+                throw new EvalException("INVALID_PATH: path cannot be empty");
+            }
+
+            ObjectNode current = root;
+
+            // Navigate/create all intermediate objects except the last part
+            for (int i = 0; i < parts.length - 1; i++) {
+                String part = parts[i];
+                if (part.isEmpty()) continue;
+
+                JsonNode child = current.get(part);
+                if (child == null || child.isNull() || child.isMissingNode()) {
+                    // Create new object node
+                    ObjectNode newNode = MAPPER.createObjectNode();
+                    current.set(part, newNode);
+                    current = newNode;
+                } else if (child.isObject()) {
+                    current = (ObjectNode) child;
+                } else {
+                    throw new EvalException("PATH_ERROR: cannot navigate through non-object at '" + part + "' in path: " + path);
+                }
+            }
+
+            // Set the value at the final path segment
+            String lastPart = parts[parts.length - 1];
+            current.put(lastPart, value);
+        }
+
+        private static String getStringValue(JsonNode node) {
+            if (node == null || node.isNull() || node.isMissingNode()) return "";
+            if (node.isTextual()) return node.asText();
+            if (node.isNumber()) return node.asText();
+            if (node.isBoolean()) return String.valueOf(node.asBoolean());
+            if (node.isArray() || node.isObject()) {
+                // Return JSON string representation for complex types
+                return node.toString();
+            }
             return "";
         }
-        private static Node findFirstChildByName(Node node, String name) {
-            for (Node c = node.getFirstChild(); c != null; c = c.getNextSibling()) {
-                if (c instanceof Element) {
-                    if (((Element) c).getTagName().equals(name)) return c;
-                }
-            }
-            return null;
-        }
-        private static String getStringValue(Element e) {
-            StringBuilder sb = new StringBuilder();
-            Node n = e.getFirstChild();
-            while (n != null) {
-                if (n.getNodeType() == Node.TEXT_NODE || n.getNodeType() == Node.CDATA_SECTION_NODE) {
-                    sb.append(n.getNodeValue());
-                }
-                n = n.getNextSibling();
-            }
-            return sb.toString();
+
+        /**
+         * Deep copy an ObjectNode
+         */
+        static ObjectNode deepCopy(ObjectNode node) {
+            return node.deepCopy();
         }
     }
 
@@ -332,7 +424,6 @@ public class ExprEval {
         PLUS, MINUS, STAR, SLASH, PERCENT,
         LT, LE, GT, GE, EQ, NE,
         ANDAND, OROR,
-        AT,
         EOF
     }
     static final class Token {
@@ -415,7 +506,6 @@ public class ExprEval {
                 case '%' : return new Token(TokType.PERCENT,"%");
                 case '<' : return new Token(TokType.LT,"<");
                 case '>' : return new Token(TokType.GT,">");
-                case '@' : return new Token(TokType.AT,"@");
                 case '&' :
                 case '|' : throw new EvalException("PARSE_ERROR: single '&' or '|' not allowed");
                 default: throw new EvalException("PARSE_ERROR: unexpected char '" + c + "'");
@@ -478,17 +568,12 @@ public class ExprEval {
                         eat(TokType.RPAREN);
                         return new FuncCall(ident, args);
                     } else {
+                        // Parse slash-separated path for JSON field access (e.g., "LetterData/M_Amount")
                         List<String> segs = new ArrayList<>();
                         segs.add(ident);
                         while (look(TokType.SLASH)){
                             eat(TokType.SLASH);
-                            if (look(TokType.AT)){
-                                eat(TokType.AT);
-                                String attr = eat(TokType.IDENT).text;
-                                segs.add("@" + attr); break;
-                            } else {
-                                segs.add(eat(TokType.IDENT).text);
-                            }
+                            segs.add(eat(TokType.IDENT).text);
                         }
                         return new VarRef(String.join("/", segs));
                     }
@@ -507,7 +592,7 @@ public class ExprEval {
     static final class StrLit implements ExprNode { final String v; StrLit(String v){this.v=v;} public Value eval(Context ctx){ return new StrVal(v); } }
     static final class VarRef implements ExprNode {
         final String path; VarRef(String path){ this.path = path; }
-        public Value eval(Context ctx){ String val = XmlUtil.resolvePath(ctx.xml, path); return new StrVal(val==null?"":val); }
+        public Value eval(Context ctx){ String val = JsonUtil.resolvePath(ctx.json, path); return new StrVal(val==null?"":val); }
     }
     static final class UnaryOp implements ExprNode {
         final String op; final ExprNode e;
@@ -625,8 +710,8 @@ public class ExprEval {
         }
     }
     static final class Context {
-        final Document xml; final FunctionRegistry functions;
-        Context(Document xml, FunctionRegistry functions){ this.xml = xml; this.functions = functions; }
+        final JsonNode json; final FunctionRegistry functions;
+        Context(JsonNode json, FunctionRegistry functions){ this.json = json; this.functions = functions; }
     }
 
     static final class StandardFunctions {
