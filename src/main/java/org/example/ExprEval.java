@@ -111,6 +111,7 @@ public class ExprEval {
         node1.put("PlanCode_Lookup/Company_Text", "Lookup(LetterData/PlanCode, 'PlanCode_Lookup', 11, \"\")");
         node1.put("PlanCode_Lookup/FaxNumber", "Lookup(LetterData/PlanCode, 'PlanCode_Lookup', 26, \"\")");
         node1.put("LetterData/CurrentDate", "if(LetterData/CurrentDate == '' ||  LetterData/ClientId == 'SBUL' || LetterData/ClientId == 'FNWL' || LetterData/ClientId == 'WELB' || LetterData/ClientId == 'ELIC'|| LetterData/ClientId == 'SBL', Now('MMMM dd, yyyy'), MaskDateTime(LetterData/CurrentDate, 'yyyy-MM-dd', 'MMMM dd, yyyy'))");
+        node1.put("LetterData/M_Recipient_FullName", "TitleCase(LetterData/M_Recipient_FullName)");
 
         Map<String, String> node2 = new LinkedHashMap<>();
         node2.put("PlanCode_Lookup/Client_Abbr","Lookup(LetterData/PlanCode, 'PlanCode_Lookup', 36, \"\")");
