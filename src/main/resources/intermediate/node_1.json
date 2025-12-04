@@ -418,6 +418,9 @@
     "ProductType" : "VA",
     "ServiceCenterHours" : "7:30 AM to 5:00 PM Central Time",
     "Company_Text" : "Everlake Life Insurance Company",
-    "FaxNumber" : "785-228-4584"
+    "FaxNumber" : "785-228-4584",
+    "PhoneNumber" : "1-800-457-7617",
+    "Address" : "Everlake Life Insurance CompanyENDLINEP.O. Box 758598ENDLINETopeka KS 66675-8598",
+    "ServiceCenter" : "Client Services"
   }
 }
