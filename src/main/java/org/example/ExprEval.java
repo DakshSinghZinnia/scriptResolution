@@ -67,17 +67,24 @@ public class ExprEval {
                     System.out.println("  Path: " + targetPath);
                     System.out.println("  Script: " + script);
 
-                    // Evaluate the script with context containing:
-                    // - outputJson: for cross-variable references (previous node's snapshot)
-                    // - intermediateJson: for self-references (evolving state within current node)
-                    // - targetPath: to determine if a reference is self or cross
-                    String scriptDecoded = Html.decodeEntities(script);
-                    Lexer lexer = new Lexer(scriptDecoded);
-                    Parser parser = new Parser(lexer);
-                    ExprNode ast = parser.parse();
-                    Context ctx = new Context(outputJson, intermediateJson, targetPath, registry);
-                    Value result = ast.eval(ctx);
-                    String resultStr = ValuePrinter.print(result);
+                    String resultStr;
+                    
+                    // Handle empty scripts - just set to empty string without parsing
+                    if (script == null || script.trim().isEmpty()) {
+                        resultStr = "";
+                    } else {
+                        // Evaluate the script with context containing:
+                        // - outputJson: for cross-variable references (previous node's snapshot)
+                        // - intermediateJson: for self-references (evolving state within current node)
+                        // - targetPath: to determine if a reference is self or cross
+                        String scriptDecoded = Html.decodeEntities(script);
+                        Lexer lexer = new Lexer(scriptDecoded);
+                        Parser parser = new Parser(lexer);
+                        ExprNode ast = parser.parse();
+                        Context ctx = new Context(outputJson, intermediateJson, targetPath, registry);
+                        Value result = ast.eval(ctx);
+                        resultStr = ValuePrinter.print(result);
+                    }
 
                     System.out.println("  Result: " + resultStr);
 
