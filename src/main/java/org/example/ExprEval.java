@@ -103,16 +103,17 @@ public class ExprEval {
         // === Node 1: Basic transformations ===
         Map<String, String> node1 = new LinkedHashMap<>();
 
-        node1.put("PlanCode_Lookup/ProductType", "Lookup(PlanCode_Lookup/PlanCode, PlanCode_Lookup, 26, \"\")");
+        node1.put("PlanCode_Lookup/ProductType", "Lookup(LetterData/PlanCode, 'PlanCode_Lookup', 27, \"\")");
         node1.put("LetterData/People_Annuitant_FullName", "Concat(LetterData/People_Annuitant_FirstName,' ',LetterData/People_Annuitant_LastName)");
         node1.put("LetterData/Owner_FullName", "Concat(LetterData/Owner_FirstName,' ',LetterData/Owner_LastName)");
         node1.put("LetterData/M_Name", "if((LetterData/DocInfo/DocName == 'Annuitization Letter_MM' || LetterData/DocInfo/DocName == 'Attempt to Locate' || LetterData/DocInfo/DocName == 'Death Initial Notification_MM' || LetterData/DocInfo/DocName == 'NIGO Death Initial Notification Letter' || LetterData/DocInfo/DocName == 'Explanation of Benefit Letter Amount') ,TitleCase(LetterData/M_Name),LetterData/M_Name)");
-        node1.put("PlanCode_Lookup/ServiceCenterHours", " Lookup(PlanCode_Lookup/PlanCode, PlanCode_Lookup, 24, \"\")");
-        node1.put("PlanCode_Lookup/Company_Text", "Lookup(PlanCode_Lookup/PlanCode, PlanCode_Lookup, 10, \"\")");
-        node1.put("PlanCode_Lookup/FaxNumber", "Lookup(PlanCode_Lookup/PlanCode, PlanCode_Lookup, 25, \"\")");
+        node1.put("PlanCode_Lookup/ServiceCenterHours", "Lookup(LetterData/PlanCode, 'PlanCode_Lookup', 25, \"\")");
+        node1.put("PlanCode_Lookup/Company_Text", "Lookup(LetterData/PlanCode, 'PlanCode_Lookup', 11, \"\")");
+        node1.put("PlanCode_Lookup/FaxNumber", "Lookup(LetterData/PlanCode, 'PlanCode_Lookup', 26, \"\")");
+        node1.put("LetterData/CurrentDate", "if(LetterData/CurrentDate == '' ||  LetterData/ClientId == 'SBUL' || LetterData/ClientId == 'FNWL' || LetterData/ClientId == 'WELB' || LetterData/ClientId == 'ELIC'|| LetterData/ClientId == 'SBL', Now('MMMM dd, yyyy'), MaskDateTime(LetterData/CurrentDate, 'yyyy-MM-dd', 'MMMM dd, yyyy'))");
 
         Map<String, String> node2 = new LinkedHashMap<>();
-        node2.put("PlanCode_Lookup/Client_Abbr","Lookup(PlanCode_Lookup/PlanCode, PlanCode_Lookup, 35, \"\")");
+        node2.put("PlanCode_Lookup/Client_Abbr","Lookup(LetterData/PlanCode, 'PlanCode_Lookup', 36, \"\")");
 
         // Copy and uppercase the owner name
         // node1.put("LetterData/OwnerNameUpper", "UpperCase(LetterData/People_PrimaryOwner_LastName)");
@@ -139,7 +140,8 @@ public class ExprEval {
         // // Create a summary field using computed values
         // node3.put("LetterData/Summary", "Concat('Contract #', LetterData/ContractNumber, ' - Value: ', LetterData/FormattedAccountValue)");
         // nodes.add(node3);
-
+        nodes.add(node1);
+        nodes.add(node2);
 
 
         return nodes;
@@ -717,10 +719,33 @@ public class ExprEval {
         final String name; final List<ExprNode> args;
         FuncCall(String n, List<ExprNode> a){ name=n; args=a; }
         public Value eval(Context ctx){
+            // Lazy evaluation for If function - only evaluate the selected branch
+            if ("if".equals(name.toLowerCase())) {
+                if (args.size() != 3) throw new EvalException("ARITY_MISMATCH: 'If' expects 3 args");
+                Value condVal = args.get(0).eval(ctx);
+                boolean cond = Coerce.toBoolean(condVal);
+                // Only evaluate the branch that will be used
+                return cond ? args.get(1).eval(ctx) : args.get(2).eval(ctx);
+            }
+            // For all other functions, evaluate all arguments
             Function f = ctx.functions.resolve(name);
             List<Value> av = new ArrayList<>(args.size());
             for (ExprNode n : args) av.add(n.eval(ctx));
-            return f.invoke(ctx, av);
+            
+            try {
+                return f.invoke(ctx, av);
+            } catch (EvalException e) {
+                // Check if any argument is an empty string
+                boolean hasEmptyInput = av.stream().anyMatch(v -> 
+                    v instanceof StrVal && ((StrVal) v).v.trim().isEmpty());
+                if (hasEmptyInput) {
+                    // Log warning and return empty string instead of breaking execution
+                    System.err.println("WARNING: " + name + "() - " + e.getMessage() + " (empty input, returning empty string)");
+                    return new StrVal("");
+                }
+                // Re-throw if no empty input was involved
+                throw e;
+            }
         }
     }
     static final class Context {
@@ -1179,6 +1204,11 @@ public class ExprEval {
             throw new EvalException("DOMAIN_ERROR: cannot detect input date/time mask");
         }
         static String maskDateTime(String input, String inputMask, String outputMask){
+            // If input is empty or null, return empty string without validating masks
+            if (input == null || input.trim().isEmpty()) {
+                return "";
+            }
+            
             if (outputMask == null || outputMask.isEmpty()) throw new EvalException("DOMAIN_ERROR: empty date/time output mask");
             if ("yyyy".equals(inputMask)) throw new EvalException("DOMAIN_ERROR: 'yyyy' cannot be used as input mask");
 
