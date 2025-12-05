@@ -5,11 +5,12 @@
       "DocName" : "Reg 60 Incoming Replacement Notice",
       "Category" : "New Business",
       "SubCategory" : "NB Reg 60",
-      "ClientName" : "Prudential"
+      "ClientName" : "Prudential",
+      "InputFileName" : "demo"
     },
     "PDF_Insert" : [ ],
     "OptionList" : [ ],
-    "CurrentDate" : "December 04, 2025",
+    "CurrentDate" : "December 05, 2025",
     "ContractNumber" : "381034",
     "PlanCode" : "433",
     "QualificationType" : "CUSTODIALINDIVIDUALRETIREMENTACCOUNT",
@@ -412,6 +413,7 @@
     "People_PrimaryOwner_FullName" : "DTCI",
     "Everly_Company_Address" : "",
     "PremiumFrequency" : "",
+    "CC_CorrelationId " : "",
     "Owner_FullName" : " DTCI"
   },
   "PlanCode_Lookup" : {
@@ -420,8 +422,27 @@
     "Company_Text" : "Everlake Life Insurance Company",
     "FaxNumber" : "785-228-4584",
     "PhoneNumber" : "1-800-457-7617",
-    "Address" : "Everlake Life Insurance Company\r\nP.O. Box 758598\r\nTopeka KS 66675-8598",
-    "ServiceCenter" : "Client Services",
-    "Client_Abbr" : "PRU"
+    "Address" : "Everlake Life Insurance CompanyENDLINEP.O. Box 758598ENDLINETopeka KS 66675-8598",
+    "ServiceCenter" : "Client Services"
+  },
+  "WebIndex" : {
+    "Header" : "WebED:",
+    "DocumentDate" : "12052025",
+    "WebSystem" : "LC          ",
+    "CorrType" : "ADHOC ",
+    "WebKey1" : "381034              ",
+    "WebKey2" : "                    ",
+    "TIN" : "000000000",
+    "DeliveryType" : "P",
+    "LetterType" : "00000",
+    "PlanCode" : "000433",
+    "Role" : "OWNER ",
+    "LoanID" : "0000000000",
+    "ProcessComp" : "      ",
+    "ProdComp" : "      ",
+    "RMAN" : "               ",
+    "BMAN" : "               ",
+    "ClientID" : "PRDN           ",
+    "ExternalClientID" : "000000000000000"
   }
 }

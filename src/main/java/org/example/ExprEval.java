@@ -123,6 +123,8 @@ public class ExprEval {
     private static List<List<Map.Entry<String, String>>> createConversionNodes() {
         List<List<Map.Entry<String, String>>> nodes = new ArrayList<>();
 
+        List<Map.Entry<String, String>> node0 = new ArrayList<>();
+        node0.add(entry("LetterData/CC_CorrelationId ",""));
         // === Node 1: Basic transformations ===
         List<Map.Entry<String, String>> node1 = new ArrayList<>();
         node1.add(entry("PlanCode_Lookup/ProductType", "Lookup(LetterData/PlanCode, 'PlanCode_Lookup', 27, \"\")"));
@@ -138,6 +140,26 @@ public class ExprEval {
         node1.add(entry("PlanCode_Lookup/PhoneNumber", "Lookup(LetterData/PlanCode, 'PlanCode_Lookup', 23, \"\")"));
         node1.add(entry("PlanCode_Lookup/Address", "Lookup(LetterData/PlanCode, 'PlanCode_Lookup', 17, \"\")"));
         node1.add(entry("PlanCode_Lookup/ServiceCenter","Lookup(LetterData/PlanCode, 'PlanCode_Lookup', 24, \"\")"));
+        node1.add(entry("WebIndex/Header","'WebED:'"));
+        node1.add(entry("WebIndex/DocumentDate","Now('MMddyyyy')"));
+        node1.add(entry("WebIndex/WebSystem","'LC          '"));
+        node1.add(entry("WebIndex/CorrType","'ADHOC '"));
+        node1.add(entry("WebIndex/WebKey1","SubString(Concat(LetterData/ContractNumber,'                    '),1,20)"));
+        node1.add(entry("WebIndex/WebKey2","'                    '"));
+        node1.add(entry("WebIndex/TIN","'000000000'"));
+        node1.add(entry("WebIndex/DeliveryType","'P'"));
+        node1.add(entry("WebIndex/LetterType","'00000'"));
+        node1.add(entry("WebIndex/PlanCode","SubString(Concat('000000',LetterData/PlanCode),Length(Concat('000000',LetterData/PlanCode))-5,6)"));
+        node1.add(entry("WebIndex/Role","'OWNER '"));
+        node1.add(entry("WebIndex/LoanID","'0000000000'"));
+        node1.add(entry("WebIndex/ProcessComp","'      '"));
+        node1.add(entry("WebIndex/ProdComp","'      '"));
+        node1.add(entry("WebIndex/RMAN","'               '"));
+        node1.add(entry("WebIndex/BMAN","'               '"));
+        node1.add(entry("WebIndex/ClientID","SubString(Concat(LetterData/ClientId,'               '),1,15)"));
+        node1.add(entry("WebIndex/ExternalClientID","'000000000000000'"));
+        node1.add(entry("LetterData/DocInfo/InputFileName","'demo'"));
+
 
         // === Node 2: Address transformations with multiple scripts on same variable ===
         List<Map.Entry<String, String>> node2 = new ArrayList<>();
@@ -146,15 +168,36 @@ public class ExprEval {
         node2.add(entry("PlanCode_Lookup/Address", "Replace(PlanCode_Lookup/Address, 'ENDLINE', '\r\n')"));
         node2.add(entry("PlanCode_Lookup/Address", "Replace(PlanCode_Lookup/Address, 'comma', ',')"));
         node2.add(entry("PlanCode_Lookup/Address", "if(LetterData/ClientId == 'NASU' && IndexOf(PlanCode_Lookup/Address, 'Nassau Life and Annuity Company') != 0 && LetterData/IssueState == 'CA', Replace(PlanCode_Lookup/Address, 'Nassau Life and Annuity Company', 'Nassau Life and Annuity Insurance Company'), PlanCode_Lookup/Address)"));
+
+        node2.add(entry(
+            "LetterData/AddressBlock/Free_Form",
+            "LetterData/M_Recipient_FullName +if(LetterData/M_Recipient_AddressLine1 != '', '\\r\\n' +LetterData/M_Recipient_AddressLine1, '')"
+            + " + if(LetterData/M_Recipient_AddressLine2 != '', '\\r\\n' + LetterData/M_Recipient_AddressLine2, '')"
+            + " + if(LetterData/M_Recipient_AddressLine3 != '', '\\r\\n' + LetterData/M_Recipient_AddressLine3, '')"
+            + " + '\\r\\n' + LetterData/M_Recipient_City +' '+ LetterData/M_Recipient_State +' '+ LetterData/M_Recipient_Zip"
+          ));
+
+        node2.add(entry("LetterData/AddressBlock/Free_Form", "UpperCase(LetterData/AddressBlock/Free_Form)"));
         
         List<Map.Entry<String, String>> node3 = new ArrayList<>();
         node3.add(entry("LetterData/GR_Slife", ""));
         node3.add(entry("LetterData/GR3", ""));
         node3.add(entry("LetterData/BR43", ""));
+        node3.add(entry("WebIndex/SourceFileName","if(LetterData/CC_CorrelationId == '', Concat(LetterData/DocInfo/InputFileName,'.pdf'), Concat('                                                                                     ', Substring(Concat(LetterData/CC_CorrelationId, '                                                                    '),1,68), '               CCMULTIINDEX'))"));
         
+        List<Map.Entry<String, String>> node4 = new ArrayList<>();
+        node4.add(entry("WebIndex/WebIndex_Part1","Concat(WebIndex/Header, WebIndex/DocumentDate, WebIndex/WebSystem, WebIndex/CorrType, WebIndex/WebKey1, WebIndex/WebKey2, WebIndex/TIN, WebIndex/DeliveryType, WebIndex/LetterType, WebIndex/PlanCode)"));
+        node4.add(entry("WebIndex/WebIndex_Part2","Concat(WebIndex/Role, WebIndex/LoanID, WebIndex/ProcessComp, WebIndex/ProdComp, WebIndex/RMAN, WebIndex/BMAN, WebIndex/ClientID, WebIndex/ExternalClientID, WebIndex/SourceFileName)"));;
+        
+        List<Map.Entry<String, String>> eaml = new ArrayList<>();
+        eaml.add(entry("LetterData/Recipient_Addblock","LetterData/AddressBlock/Free_Form"));
+
+        nodes.add(node0);
         nodes.add(node1);
         nodes.add(node2);
         nodes.add(node3);
+        nodes.add(node4);
+        nodes.add(eaml);
 
         return nodes;
     }

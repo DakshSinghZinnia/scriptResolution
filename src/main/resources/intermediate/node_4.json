@@ -420,8 +420,7 @@
     },
     "GR_Slife" : "",
     "GR3" : "",
-    "BR43" : "",
-    "Recipient_Addblock" : "BRAD YOUNG\r\nMEAN STREET\r\nSTREET 2\r\nALBANY NY 12204"
+    "BR43" : ""
   },
   "PlanCode_Lookup" : {
     "ProductType" : "VA",
@@ -452,8 +451,6 @@
     "BMAN" : "               ",
     "ClientID" : "PRDN           ",
     "ExternalClientID" : "000000000000000",
-    "SourceFileName" : "demo.pdf",
-    "WebIndex_Part1" : "WebED:12052025LC          ADHOC 381034                                  000000000P00000000433",
-    "WebIndex_Part2" : "OWNER 0000000000                                          PRDN           000000000000000demo.pdf"
+    "SourceFileName" : "demo.pdf"
   }
 }
