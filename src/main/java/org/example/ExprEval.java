@@ -180,7 +180,7 @@ public class ExprEval {
         node2.add(entry("LetterData/AddressBlock/Free_Form", "UpperCase(LetterData/AddressBlock/Free_Form)"));
         
         List<Map.Entry<String, String>> node3 = new ArrayList<>();
-        node3.add(entry("LetterData/GR_Slife", ""));
+        //node3.add(entry("LetterData/GR_Slife", ""));
         node3.add(entry("LetterData/GR3", ""));
         node3.add(entry("LetterData/BR43", ""));
         node3.add(entry("WebIndex/SourceFileName","if(LetterData/CC_CorrelationId == '', Concat(LetterData/DocInfo/InputFileName,'.pdf'), Concat('                                                                                     ', Substring(Concat(LetterData/CC_CorrelationId, '                                                                    '),1,68), '               CCMULTIINDEX'))"));
@@ -191,6 +191,8 @@ public class ExprEval {
         
         List<Map.Entry<String, String>> eaml = new ArrayList<>();
         eaml.add(entry("LetterData/Recipient_Addblock","LetterData/AddressBlock/Free_Form"));
+        eaml.add(entry("LetterData/BR43","If (LetterData/DocInfo/ClientName == 'Sammons', ' visit our website at www.srslivewellservice.com or', If (LetterData/DocInfo/ClientName == 'GLAC', ' visit our website at InsuranceAccountServices.com or', ''))"));
+        eaml.add(entry("LetterData/GR_Slife","If(LetterData/ClientId =='MWOA','certificate',If(PlanCode_Lookup/ProductType=='VUL' || PlanCode_Lookup/ProductType =='Life','policy','contract'))"));
 
         nodes.add(node0);
         nodes.add(node1);

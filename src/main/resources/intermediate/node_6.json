@@ -418,10 +418,10 @@
     "AddressBlock" : {
       "Free_Form" : "BRAD YOUNG\r\nMEAN STREET\r\nSTREET 2\r\nALBANY NY 12204"
     },
-    "GR_Slife" : "",
     "GR3" : "",
     "BR43" : "",
-    "Recipient_Addblock" : "BRAD YOUNG\r\nMEAN STREET\r\nSTREET 2\r\nALBANY NY 12204"
+    "Recipient_Addblock" : "BRAD YOUNG\r\nMEAN STREET\r\nSTREET 2\r\nALBANY NY 12204",
+    "GR_Slife" : "contract"
   },
   "PlanCode_Lookup" : {
     "ProductType" : "VA",
